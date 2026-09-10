@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Study Timer"/>
+<title>Study Loop Timer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 1.5rem 1rem 2rem; }
+  h1 { font-size: 18px; font-weight: 600; color: #1a1a18; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; }
+  .ring-wrap { position: relative; width: 200px; height: 200px; margin: 0 auto 1rem; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .time-big { font-size: 44px; font-weight: 600; font-family: 'Courier New', monospace; color: #1a1a18; line-height: 1; }
+  .loop-sub { font-size: 13px; color: #888; }
+  .status-bar { text-align: center; margin-bottom: 1rem; }
+  .pill-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 16px; border-radius: 99px; background: #e8e8e4; color: #666; border: 1px solid #ddd; }
+  .pill-status.running { background: #e6f1fb; color: #185fa5; border-color: #b5d4f4; }
+  .pill-status.speaking { background: #eaf3de; color: #3b6d11; border-color: #c0dd97; }
+  .pills { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  .qp { padding: 7px 14px; border-radius: 99px; border: 1px solid #ddd; background: #fff; color: #555; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .qp.active { background: #e6f1fb; color: #185fa5; border-color: #b5d4f4; font-weight: 600; }
+  .custom-row { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 1rem; }
+  .custom-row input { width: 64px; text-align: center; font-size: 16px; padding: 8px 4px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #1a1a18; }
+  .sep { font-size: 18px; color: #aaa; font-weight: 600; }
+  .set-btn { padding: 9px 16px; font-size: 14px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; }
+  .sound-card { background: #fff; border: 1px solid #e0e0dc; border-radius: 14px; padding: 0.9rem 1rem; margin-bottom: 1rem; width: 100%; max-width: 360px; }
+  .sound-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .sound-row:last-child { margin-bottom: 0; }
+  .sound-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #444; cursor: pointer; }
+  .test-btn { padding: 5px 12px; border-radius: 99px; border: 1px solid #ddd; background: #f5f5f0; color: #555; font-size: 12px; cursor: pointer; }
+  .vol-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #aaa; margin-top: 10px; border-top: 1px solid #f0f0ec; padding-top: 10px; }
+  .vol-row input[type=range] { flex: 1; height: 4px; accent-color: #378add; }
+  .ctrl-row { display: flex; gap: 10px; width: 100%; max-width: 360px; margin-bottom: 0.5rem; }
+  .btn { flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #ddd; background: #fff; color: #1a1a18; font-size: 15px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .btn.accent { background: #378add; color: #fff; border-color: #378add; }
+  .hist { margin-top: 1rem; width: 100%; max-width: 360px; border-top: 1px solid #e0e0dc; padding-top: 0.75rem; }
+  .hist-title { font-size: 12px; color: #aaa; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hist-item { font-size: 13px; color: #555; display: flex; justify-content: space-between; padding: 3px 0; }
+  .hist-item span { color: #aaa; }
+  .tip { font-size: 12px; color: #aaa; text-align: center; margin-top: 1rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<h1>⏱ Study Loop Timer</h1>
+
+<div class="ring-wrap">
+  <svg width="200" height="200" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="88" fill="none" stroke="#efefeb" stroke-width="11"/>
+    <circle id="arc" cx="100" cy="100" r="88" fill="none"
+      stroke="#378add" stroke-width="11"
+      stroke-dasharray="553" stroke-dashoffset="0"
+      stroke-linecap="round"/>
+  </svg>
+  <div class="ring-center">
+    <div class="time-big" id="display">05:00</div>
+    <div class="loop-sub" id="loopSub">Ready</div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span class="pill-status" id="statusPill">&#9679; Ready</span>
+</div>
+
+<div class="pills">
+  <span class="qp" data-min="1">1 min</span>
+  <span class="qp" data-min="2">2 min</span>
+  <span class="qp" data-min="3">3 min</span>
+  <span class="qp active" data-min="5">5 min</span>
+  <span class="qp" data-min="10">10 min</span>
+  <span class="qp" data-min="15">15 min</span>
+</div>
+
+<div class="custom-row">
+  <input type="number" id="cMin" min="0" max="99" value="5" placeholder="mm"/>
+  <span class="sep">:</span>
+  <input type="number" id="cSec" min="0" max="59" value="0" placeholder="ss"/>
+  <button class="set-btn" onclick="applyCustom()">Set</button>
+</div>
+
+<div class="sound-card">
+  <div class="sound-row">
+    <label class="sound-label">
+      <input type="checkbox" id="toneOn" checked />
+      🔔 Loud tone
+    </label>
+    <button class="test-btn" onclick="playTone(true)">Test</button>
+  </div>
+  <div class="sound-row">
+    <label class="sound-label">
+      <input type="checkbox" id="voiceOn" checked />
+      🗣 Voice alert
+    </label>
+    <button class="test-btn" onclick="speak('Start next loop')">Test</button>
+  </div>
+  <div class="vol-row">
+    🔊
+    <input type="range" id="volSlider" min="0.1" max="1" step="0.1" value="1" />
+    <span id="volLabel">100%</span>
+  </div>
+</div>
+
+<div class="ctrl-row">
+  <button class="btn accent" id="startBtn" onclick="toggleTimer()">▶ Start</button>
+  <button class="btn" onclick="resetTimer()">↺ Reset</button>
+</div>
+
+<div class="hist" id="histBox" style="display:none">
+  <div class="hist-title">Loop history</div>
+  <div id="histList"></div>
+</div>
+
+<p class="tip">Keep screen on while using.<br/>Add to Home Screen for app-like experience.</p>
+
+<script>
+const CIRC = 553;
+let totalSecs = 300, remaining = 300, running = false, ivl = null;
+let loopCount = 0, histLog = [];
+let audioCtx = null;
+
+function getCtx() {
+  if (!audioCtx || audioCtx.state === 'closed')
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(isTest) {
+  if (!document.getElementById('toneOn').checked && !isTest) return;
+  const vol = parseFloat(document.getElementById('volSlider').value);
+  try {
+    const ctx = getCtx();
+    [{freq:880,s:0,d:0.18},{freq:880,s:0.22,d:0.18},{freq:1100,s:0.44,d:0.35}].forEach(({freq,s,d}) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(vol*0.6, ctx.currentTime+s);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+s+d);
+      osc.start(ctx.currentTime+s); osc.stop(ctx.currentTime+s+d+0.05);
+    });
+  } catch(e) {}
+}
+
+function speak(msg) {
+  if (!document.getElementById('voiceOn').checked) return;
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(msg);
+  u.rate = 0.92; u.pitch = 1.05;
+  u.volume = parseFloat(document.getElementById('volSlider').value);
+  window.speechSynthesis.speak(u);
+}
+
+document.getElementById('volSlider').addEventListener('input', function() {
+  document.getElementById('volLabel').textContent = Math.round(this.value*100) + '%';
+});
+
+function fmt(s) {
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function setArc(rem, tot) {
+  document.getElementById('arc').style.strokeDashoffset = CIRC*(1-(tot>0?rem/tot:1));
+}
+function setStatus(text, cls) {
+  const el = document.getElementById('statusPill');
+  el.textContent = (cls==='running'?'▶ ':cls==='speaking'?'🔊 ':'● ') + text;
+  el.className = 'pill-status' + (cls?' '+cls:'');
+}
+
+function applyTime(secs) {
+  if (ivl) { clearInterval(ivl); ivl=null; }
+  running=false; totalSecs=secs; remaining=secs; loopCount=0; histLog=[];
+  document.getElementById('startBtn').textContent = '▶ Start';
+  document.getElementById('startBtn').className = 'btn accent';
+  document.getElementById('loopSub').textContent = 'Ready';
+  document.getElementById('histBox').style.display = 'none';
+  setStatus('Ready'); setArc(secs,secs);
+  document.getElementById('display').textContent = fmt(secs);
+}
+
+function applyCustom() {
+  const m=parseInt(document.getElementById('cMin').value)||0;
+  const s=parseInt(document.getElementById('cSec').value)||0;
+  const t=m*60+s; if(t<1) return;
+  document.querySelectorAll('.qp').forEach(p=>p.classList.remove('active'));
+  applyTime(t);
+}
+
+function onLoopDone() {
+  loopCount++;
+  const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  histLog.unshift({n:loopCount,t:now});
+  if(histLog.length>8) histLog.pop();
+  document.getElementById('histBox').style.display='block';
+  document.getElementById('histList').innerHTML = histLog.map(h=>
+    `<div class="hist-item">Loop ${h.n} done <span>${h.t}</span></div>`).join('');
+  setStatus('Alert!','speaking');
+  playTone(false);
+  setTimeout(()=>speak('Start next loop'), 900);
+  setTimeout(()=>{ if(running) setStatus('Running','running'); }, 3200);
+  remaining=totalSecs;
+  document.getElementById('loopSub').textContent = 'Loop '+loopCount+' done';
+  setArc(remaining,totalSecs);
+  document.getElementById('display').textContent = fmt(remaining);
+}
+
+function toggleTimer() {
+  if (!running) {
+    getCtx();
+    running=true;
+    document.getElementById('startBtn').textContent = '⏸ Pause';
+    document.getElementById('startBtn').className = 'btn';
+    setStatus('Running','running');
+    ivl = setInterval(()=>{
+      remaining--;
+      if(remaining<=0) { onLoopDone(); }
+      else { document.getElementById('display').textContent=fmt(remaining); setArc(remaining,totalSecs); }
+    },1000);
+  } else {
+    running=false; clearInterval(ivl); ivl=null;
+    document.getElementById('startBtn').textContent = '▶ Resume';
+    document.getElementById('startBtn').className = 'btn accent';
+    setStatus('Paused');
+  }
+}
+
+function resetTimer() {
+  if(ivl) clearInterval(ivl); ivl=null;
+  running=false; loopCount=0; remaining=totalSecs; histLog=[];
+  document.getElementById('startBtn').textContent = '▶ Start';
+  document.getElementById('startBtn').className = 'btn accent';
+  document.getElementById('loopSub').textContent = 'Ready';
+  document.getElementById('histBox').style.display='none';
+  setStatus('Ready'); setArc(totalSecs,totalSecs);
+  document.getElementById('display').textContent=fmt(totalSecs);
+}
+
+document.querySelectorAll('.qp').forEach(p => {
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('.qp').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    document.getElementById('cMin').value = p.dataset.min;
+    document.getElementById('cSec').value = 0;
+    applyTime(parseInt(p.dataset.min)*60);
+  });
+});
+</script>
+</body>
+</html>
